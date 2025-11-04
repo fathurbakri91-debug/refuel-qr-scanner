@@ -1,19 +1,24 @@
 <!--
   ═══════════════════════════════════════════════════════════════
-  REFUELING QR SCANNER - VERSION 5 (SAFARI VISUAL FIX)
+  REFUELING QR SCANNER - VERSION 7 (DUAL BEEP SYSTEM)
   ═══════════════════════════════════════════════════════════════
   
-  FIXES IN VERSION 5:
-  ✅ Safari iPhone: Visual Toast Notification (100% reliable)
-  ✅ Beep Sound Works Everywhere
+  FEATURES IN VERSION 7:
+  ✅ Dual Beep System (Success vs Failure)
+  ✅ Visual Toast Notification (100% reliable)
   ✅ Vibration Feedback (Haptic)
   ✅ Force Indonesian Language
   ✅ Offline Mode Support
   ✅ Error Handling & Retry Logic
-  ✅ Multi-device Compatible
+  ✅ Multi-device Compatible (iPhone, Android)
+  
+  BEEP PATTERNS:
+  - Scanning: 1x beep (info)
+  - Success: 2x beep ceria ✓ (centang/check)
+  - Error: 3x beep serius ✗ (tetot/buzzer)
   
   Created: 2025-11-04
-  Updated: 2025-11-04 (v5)
+  Updated: 2025-11-04 (v7)
   ═══════════════════════════════════════════════════════════════
 -->
 
@@ -22,7 +27,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>Refueling QR Scanner - Version 5</title>
+  <title>Refueling QR Scanner - Version 7</title>
   <script async src="https://unpkg.com/html5-qrcode@latest"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -726,49 +731,11 @@ function formatToJamMenitFromRaw(rawStr) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// VISUAL NOTIFICATION SYSTEM (V5 - SAFARI FIX)
+// VISUAL NOTIFICATION SYSTEM
 // ═══════════════════════════════════════════════════════════════
 function speak(text) {
-  // Always show visual notification (100% reliable for Safari)
+  // Always show visual notification
   showVibrateNotification("🔊 Notifikasi", text);
-  
-  // Try text-to-speech as bonus (may not work on Safari iOS)
-  if (!window.speechSynthesis) {
-    return;
-  }
-  
-  const synth = window.speechSynthesis;
-  synth.cancel();
-  
-  let utter = new SpeechSynthesisUtterance(text);
-  utter.lang = "id-ID";
-  utter.rate = 0.95;
-  utter.pitch = 1.0;
-  utter.volume = 1.0;
-  
-  const voices = synth.getVoices();
-  const indonesianVoice = voices.find(v => v.lang === 'id-ID' || v.lang.startsWith('id'));
-  
-  if (indonesianVoice) {
-    utter.voice = indonesianVoice;
-  }
-  
-  try {
-    if (window.AudioContext || window.webkitAudioContext) {
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
-    }
-  } catch (e) {
-    console.log("Audio context error:", e);
-  }
-  
-  try {
-    synth.speak(utter);
-  } catch (err) {
-    console.error("Speak error:", err);
-  }
 }
 
 function showVibrateNotification(title, message) {
@@ -788,8 +755,8 @@ function showLargeToast(title, message, duration = 4000) {
   const toast = document.createElement('div');
   toast.className = 'toast-notification';
   toast.innerHTML = `
-    <div style="font-weight: 700; margin-bottom: 8px; font-size: 16px;">${title}</div>
-    <div style="font-weight: 500; font-size: 14px; line-height: 1.5;">${message}</div>
+    <div style="font-weight: 700; margin-bottom: 8px; font-size: 18px; line-height: 1.2;">${title}</div>
+    <div style="font-weight: 500; font-size: 15px; line-height: 1.6;">${message}</div>
   `;
   
   toast.style.cssText = `
@@ -799,14 +766,14 @@ function showLargeToast(title, message, duration = 4000) {
     transform: translateX(-50%);
     background: linear-gradient(135deg, rgba(0, 0, 0, 0.95), rgba(30, 30, 30, 0.95));
     color: #fff;
-    padding: 18px 22px;
-    border-radius: 14px;
-    font-size: 14px;
+    padding: 20px 24px;
+    border-radius: 16px;
+    font-size: 15px;
     z-index: 9999;
-    max-width: 360px;
+    max-width: 340px;
     text-align: center;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.2);
   `;
   
   document.body.appendChild(toast);
@@ -831,7 +798,7 @@ function showToast(message, duration = 2000) {
     bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.8);
+    background: rgba(0, 0, 0, 0.85);
     color: white;
     padding: 12px 16px;
     border-radius: 8px;
@@ -966,7 +933,7 @@ function handleScanSuccess(data, decodedText, result) {
       </span>
     `;
     playBeep("success");
-    speak(`Silahkan melakukan pengisian di line ${line}`);
+    speak(`Pengisian diizinkan di line ${line}`);
   } else {
     let fullUnitNumber = decodedText;
     let jamRefuel = "";
@@ -991,7 +958,9 @@ function handleScanSuccess(data, decodedText, result) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// AUDIO BEEP
+// DUAL BEEP SYSTEM (V7)
+// SUCCESS: 2x beep ceria (centang)
+// ERROR: 3x beep serius (tetot)
 // ═══════════════════════════════════════════════════════════════
 function playBeep(type) {
   try {
@@ -1016,23 +985,63 @@ function playBeepSound(audioContext, type) {
   gain.connect(audioContext.destination);
   
   if (type === "scanning") {
-    osc.frequency.value = 600;
-    gain.gain.setValueAtTime(0.3, audioContext.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-    osc.start(audioContext.currentTime);
-    osc.stop(audioContext.currentTime + 0.3);
-  } else if (type === "success") {
+    // SCANNING: 1x beep pendek (info)
     osc.frequency.value = 800;
-    gain.gain.setValueAtTime(0.3, audioContext.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+    gain.gain.setValueAtTime(0.25, audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
     osc.start(audioContext.currentTime);
-    osc.stop(audioContext.currentTime + 0.5);
-  } else {
+    osc.stop(audioContext.currentTime + 0.2);
+    
+  } else if (type === "success") {
+    // SUCCESS: 2x beep CERIA (centang/check sound - tinggi)
+    // Beep 1
+    osc.frequency.value = 900;
+    gain.gain.setValueAtTime(0.4, audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+    osc.start(audioContext.currentTime);
+    osc.stop(audioContext.currentTime + 0.15);
+    
+    // Beep 2 (setelah 200ms)
+    const osc2 = audioContext.createOscillator();
+    const gain2 = audioContext.createGain();
+    osc2.connect(gain2);
+    gain2.connect(audioContext.destination);
+    osc2.frequency.value = 1100;
+    gain2.gain.setValueAtTime(0.4, audioContext.currentTime + 0.25);
+    gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+    osc2.start(audioContext.currentTime + 0.25);
+    osc2.stop(audioContext.currentTime + 0.4);
+    
+  } else if (type === "error") {
+    // ERROR: 3x beep SERIUS (tetot/buzzer sound - rendah)
+    // Beep 1
     osc.frequency.value = 400;
-    gain.gain.setValueAtTime(0.3, audioContext.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+    gain.gain.setValueAtTime(0.4, audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
     osc.start(audioContext.currentTime);
-    osc.stop(audioContext.currentTime + 0.3);
+    osc.stop(audioContext.currentTime + 0.2);
+    
+    // Beep 2 (setelah 150ms)
+    const osc2 = audioContext.createOscillator();
+    const gain2 = audioContext.createGain();
+    osc2.connect(gain2);
+    gain2.connect(audioContext.destination);
+    osc2.frequency.value = 400;
+    gain2.gain.setValueAtTime(0.4, audioContext.currentTime + 0.35);
+    gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.55);
+    osc2.start(audioContext.currentTime + 0.35);
+    osc2.stop(audioContext.currentTime + 0.55);
+    
+    // Beep 3 (setelah 150ms lagi)
+    const osc3 = audioContext.createOscillator();
+    const gain3 = audioContext.createGain();
+    osc3.connect(gain3);
+    gain3.connect(audioContext.destination);
+    osc3.frequency.value = 400;
+    gain3.gain.setValueAtTime(0.4, audioContext.currentTime + 0.7);
+    gain3.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.9);
+    osc3.start(audioContext.currentTime + 0.7);
+    osc3.stop(audioContext.currentTime + 0.9);
   }
 }
 </script>
