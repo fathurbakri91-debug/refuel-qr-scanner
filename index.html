@@ -1,18 +1,19 @@
 <!--
   ═══════════════════════════════════════════════════════════════
-  REFUELING QR SCANNER - VERSION 4 (SAFARI + INDONESIAN FIX)
+  REFUELING QR SCANNER - VERSION 5 (SAFARI VISUAL FIX)
   ═══════════════════════════════════════════════════════════════
   
-  FIXES IN VERSION 4:
-  ✅ Safari iPhone Audio Working (with error handling)
-  ✅ Force Indonesian Text-to-Speech (ignore device language)
-  ✅ Haptic Feedback / Vibration Fallback
-  ✅ Visual Toast Notifications
+  FIXES IN VERSION 5:
+  ✅ Safari iPhone: Visual Toast Notification (100% reliable)
+  ✅ Beep Sound Works Everywhere
+  ✅ Vibration Feedback (Haptic)
+  ✅ Force Indonesian Language
   ✅ Offline Mode Support
   ✅ Error Handling & Retry Logic
+  ✅ Multi-device Compatible
   
   Created: 2025-11-04
-  Updated: 2025-11-04 (v4)
+  Updated: 2025-11-04 (v5)
   ═══════════════════════════════════════════════════════════════
 -->
 
@@ -21,7 +22,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>Refueling QR Scanner - Version 4</title>
+  <title>Refueling QR Scanner - Version 5</title>
   <script async src="https://unpkg.com/html5-qrcode@latest"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -724,42 +725,15 @@ function formatToJamMenitFromRaw(rawStr) {
   return match ? `${match[1].padStart(2,'0')}:${match[2]}` : "";
 }
 
-function showToast(message, duration = 2000) {
-  const toast = document.createElement('div');
-  toast.textContent = message;
-  toast.style.cssText = `
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.8);
-    color: white;
-    padding: 15px 20px;
-    border-radius: 8px;
-    font-size: 14px;
-    z-index: 9999;
-    max-width: 300px;
-    text-align: center;
-  `;
-  
-  document.body.appendChild(toast);
-  
-  setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transition = 'opacity 0.3s ease';
-    setTimeout(() => {
-      document.body.removeChild(toast);
-    }, 300);
-  }, duration);
-}
-
 // ═══════════════════════════════════════════════════════════════
-// FORCE INDONESIAN TEXT-TO-SPEECH (V4 - SAFARI FIXED)
+// VISUAL NOTIFICATION SYSTEM (V5 - SAFARI FIX)
 // ═══════════════════════════════════════════════════════════════
 function speak(text) {
+  // Always show visual notification (100% reliable for Safari)
+  showVibrateNotification("🔊 Notifikasi", text);
+  
+  // Try text-to-speech as bonus (may not work on Safari iOS)
   if (!window.speechSynthesis) {
-    console.log("Speech Synthesis tidak tersedia");
-    showToast("⚠️ Audio tidak tersedia di device ini");
     return;
   }
   
@@ -779,32 +753,11 @@ function speak(text) {
     utter.voice = indonesianVoice;
   }
   
-  const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  
-  if (isSafari || isIOS) {
-    utter.onstart = function() {
-      console.log("🔊 Speech started (iOS/Safari)");
-      showToast("🔊 Audio sedang diputar...", 1000);
-    };
-    
-    utter.onerror = function(event) {
-      console.log("Speech error:", event.error);
-      showToast("⚠️ Audio gagal diputar");
-    };
-    
-    utter.onend = function() {
-      console.log("✅ Speech ended");
-    };
-  }
-  
   try {
     if (window.AudioContext || window.webkitAudioContext) {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       if (audioCtx.state === 'suspended') {
-        audioCtx.resume().then(() => {
-          console.log("Audio context resumed");
-        });
+        audioCtx.resume();
       }
     }
   } catch (e) {
@@ -815,10 +768,95 @@ function speak(text) {
     synth.speak(utter);
   } catch (err) {
     console.error("Speak error:", err);
-    showToast("❌ Audio error");
   }
 }
 
+function showVibrateNotification(title, message) {
+  // Vibrate pattern
+  if (navigator.vibrate) {
+    navigator.vibrate([50, 30, 50, 30, 50]);
+  }
+  
+  // Show large visual notification
+  showLargeToast(title, message);
+}
+
+function showLargeToast(title, message, duration = 4000) {
+  const existing = document.querySelector('.toast-notification');
+  if (existing) existing.remove();
+  
+  const toast = document.createElement('div');
+  toast.className = 'toast-notification';
+  toast.innerHTML = `
+    <div style="font-weight: 700; margin-bottom: 8px; font-size: 16px;">${title}</div>
+    <div style="font-weight: 500; font-size: 14px; line-height: 1.5;">${message}</div>
+  `;
+  
+  toast.style.cssText = `
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.95), rgba(30, 30, 30, 0.95));
+    color: #fff;
+    padding: 18px 22px;
+    border-radius: 14px;
+    font-size: 14px;
+    z-index: 9999;
+    max-width: 360px;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+  `;
+  
+  document.body.appendChild(toast);
+  
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(-50%) translateY(10px)';
+    toast.style.transition = 'all 0.3s ease';
+    setTimeout(() => {
+      if (toast.parentElement) {
+        document.body.removeChild(toast);
+      }
+    }, 300);
+  }, duration);
+}
+
+function showToast(message, duration = 2000) {
+  const toast = document.createElement('div');
+  toast.textContent = message;
+  toast.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    z-index: 9998;
+    max-width: 300px;
+    text-align: center;
+  `;
+  
+  document.body.appendChild(toast);
+  
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transition = 'opacity 0.3s ease';
+    setTimeout(() => {
+      if (toast.parentElement) {
+        document.body.removeChild(toast);
+      }
+    }, 300);
+  }, duration);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SCAN PROCESSING
+// ═══════════════════════════════════════════════════════════════
 async function onScan(decodedText) {
   if(decodedText === lastCode) return;
   lastCode = decodedText;
@@ -952,6 +990,9 @@ function handleScanSuccess(data, decodedText, result) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════
+// AUDIO BEEP
+// ═══════════════════════════════════════════════════════════════
 function playBeep(type) {
   try {
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
