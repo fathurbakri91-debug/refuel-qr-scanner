@@ -1,22 +1,28 @@
 <!--
   ═══════════════════════════════════════════════════════════════
-  REFUELING QR SCANNER - VERSION 8 (HYBRID BEEP + VOICE)
+  REFUELING QR SCANNER - VERSION 9 (FINAL EDITION)
   ═══════════════════════════════════════════════════════════════
   
-  FEATURES IN VERSION 8:
-  ✅ Android: Beep + Voice (normal TTS)
-  ✅ iPhone: Beep → Voice (sequential)
-  ✅ Visual Toast Notification
-  ✅ Vibration Feedback
+  FEATURES IN VERSION 9:
+  ✅ Android: Voice langsung (tanpa delay)
+  ✅ iPhone: Voice setelah beep (1 detik delay)
+  ✅ Dual Beep System (Success centang vs Failure tetot)
+  ✅ Visual Toast Notification (100% reliable)
+  ✅ Vibration Feedback (Haptic)
   ✅ Offline Mode Support
-  ✅ Multi-device Compatible
+  ✅ Multi-device Optimized
   
-  SEQUENCE:
+  BEHAVIOR:
+  Android:
+  - Success: Beep centang + Voice "Pengisian diizinkan..."
+  - Failure: Beep tetot + Voice "Mohon maaf unit..."
+  
+  iPhone (Safari/Chrome):
   - Success: Beep centang (2x) → Voice "Pengisian diizinkan..."
   - Failure: Beep tetot (3x) → Voice "Mohon maaf unit..."
   
   Created: 2025-11-04
-  Updated: 2025-11-04 (v8)
+  Version: 9 (Final)
   ═══════════════════════════════════════════════════════════════
 -->
 
@@ -25,7 +31,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>Refueling QR Scanner - Version 8</title>
+  <title>Refueling QR Scanner - Version 9</title>
   <script async src="https://unpkg.com/html5-qrcode@latest"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -729,21 +735,27 @@ function formatToJamMenitFromRaw(rawStr) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// VISUAL NOTIFICATION + VOICE (SEQUENTIAL)
+// SMART DEVICE DETECTION + VOICE (V9 - FINAL)
 // ═══════════════════════════════════════════════════════════════
 function speak(text, beepType = null) {
-  // Show visual notification
   showVibrateNotification("🔊 Notifikasi", text);
   
-  // If beepType specified, play beep FIRST, then voice
+  // Detect if iOS (iPhone/iPad)
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  
   if (beepType) {
     playBeep(beepType);
-    // Then play voice after beep finishes (delay: 1 second for beep to complete)
-    setTimeout(() => {
+    
+    if (isIOS) {
+      // iPhone: delay 1 detik untuk beep selesai
+      setTimeout(() => {
+        speakVoice(text);
+      }, 1000);
+    } else {
+      // Android: langsung jalan (no delay)
       speakVoice(text);
-    }, 1000);
+    }
   } else {
-    // No beep type = just voice
     speakVoice(text);
   }
 }
@@ -966,7 +978,7 @@ function handleScanSuccess(data, decodedText, result) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// DUAL BEEP SYSTEM (V8)
+// DUAL BEEP SYSTEM (V9)
 // ═══════════════════════════════════════════════════════════════
 function playBeep(type) {
   try {
