@@ -1,24 +1,22 @@
 <!--
   ═══════════════════════════════════════════════════════════════
-  REFUELING QR SCANNER - VERSION 7 (DUAL BEEP SYSTEM)
+  REFUELING QR SCANNER - VERSION 8 (HYBRID BEEP + VOICE)
   ═══════════════════════════════════════════════════════════════
   
-  FEATURES IN VERSION 7:
-  ✅ Dual Beep System (Success vs Failure)
-  ✅ Visual Toast Notification (100% reliable)
-  ✅ Vibration Feedback (Haptic)
-  ✅ Force Indonesian Language
+  FEATURES IN VERSION 8:
+  ✅ Android: Beep + Voice (normal TTS)
+  ✅ iPhone: Beep → Voice (sequential)
+  ✅ Visual Toast Notification
+  ✅ Vibration Feedback
   ✅ Offline Mode Support
-  ✅ Error Handling & Retry Logic
-  ✅ Multi-device Compatible (iPhone, Android)
+  ✅ Multi-device Compatible
   
-  BEEP PATTERNS:
-  - Scanning: 1x beep (info)
-  - Success: 2x beep ceria ✓ (centang/check)
-  - Error: 3x beep serius ✗ (tetot/buzzer)
+  SEQUENCE:
+  - Success: Beep centang (2x) → Voice "Pengisian diizinkan..."
+  - Failure: Beep tetot (3x) → Voice "Mohon maaf unit..."
   
   Created: 2025-11-04
-  Updated: 2025-11-04 (v7)
+  Updated: 2025-11-04 (v8)
   ═══════════════════════════════════════════════════════════════
 -->
 
@@ -27,7 +25,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>Refueling QR Scanner - Version 7</title>
+  <title>Refueling QR Scanner - Version 8</title>
   <script async src="https://unpkg.com/html5-qrcode@latest"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -731,20 +729,66 @@ function formatToJamMenitFromRaw(rawStr) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// VISUAL NOTIFICATION SYSTEM
+// VISUAL NOTIFICATION + VOICE (SEQUENTIAL)
 // ═══════════════════════════════════════════════════════════════
-function speak(text) {
-  // Always show visual notification
+function speak(text, beepType = null) {
+  // Show visual notification
   showVibrateNotification("🔊 Notifikasi", text);
+  
+  // If beepType specified, play beep FIRST, then voice
+  if (beepType) {
+    playBeep(beepType);
+    // Then play voice after beep finishes (delay: 1 second for beep to complete)
+    setTimeout(() => {
+      speakVoice(text);
+    }, 1000);
+  } else {
+    // No beep type = just voice
+    speakVoice(text);
+  }
+}
+
+function speakVoice(text) {
+  if (!window.speechSynthesis) return;
+  
+  const synth = window.speechSynthesis;
+  synth.cancel();
+  
+  let utter = new SpeechSynthesisUtterance(text);
+  utter.lang = "id-ID";
+  utter.rate = 0.95;
+  utter.pitch = 1.0;
+  utter.volume = 1.0;
+  
+  const voices = synth.getVoices();
+  const indonesianVoice = voices.find(v => v.lang === 'id-ID' || v.lang.startsWith('id'));
+  
+  if (indonesianVoice) {
+    utter.voice = indonesianVoice;
+  }
+  
+  try {
+    if (window.AudioContext || window.webkitAudioContext) {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+  } catch (e) {
+    console.log("Audio context error:", e);
+  }
+  
+  try {
+    synth.speak(utter);
+  } catch (err) {
+    console.error("Speak error:", err);
+  }
 }
 
 function showVibrateNotification(title, message) {
-  // Vibrate pattern
   if (navigator.vibrate) {
     navigator.vibrate([50, 30, 50, 30, 50]);
   }
-  
-  // Show large visual notification
   showLargeToast(title, message);
 }
 
@@ -790,37 +834,6 @@ function showLargeToast(title, message, duration = 4000) {
   }, duration);
 }
 
-function showToast(message, duration = 2000) {
-  const toast = document.createElement('div');
-  toast.textContent = message;
-  toast.style.cssText = `
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.85);
-    color: white;
-    padding: 12px 16px;
-    border-radius: 8px;
-    font-size: 13px;
-    z-index: 9998;
-    max-width: 300px;
-    text-align: center;
-  `;
-  
-  document.body.appendChild(toast);
-  
-  setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transition = 'opacity 0.3s ease';
-    setTimeout(() => {
-      if (toast.parentElement) {
-        document.body.removeChild(toast);
-      }
-    }, 300);
-  }, duration);
-}
-
 // ═══════════════════════════════════════════════════════════════
 // SCAN PROCESSING
 // ═══════════════════════════════════════════════════════════════
@@ -852,8 +865,7 @@ async function processQRCode(decodedText, device, result, retryCount = 0) {
       });
       localStorage.setItem('offlineScans', JSON.stringify(offlineData));
       
-      playBeep("error");
-      speak("Mode offline - data disimpan lokal");
+      speak("Mode offline - data disimpan lokal", "error");
       return;
     }
     
@@ -884,7 +896,7 @@ async function processQRCode(decodedText, device, result, retryCount = 0) {
     } else {
       result.className = "status-error";
       result.innerHTML = `<span class="result-status"><span class="result-status-icon">❌</span> ${data.message || "Error"}</span>`;
-      playBeep("error");
+      speak(data.message || "Terjadi kesalahan", "error");
     }
     
   } catch (err) {
@@ -894,8 +906,7 @@ async function processQRCode(decodedText, device, result, retryCount = 0) {
       result.className = "status-error";
       result.innerHTML = `<span class="result-status"><span class="result-status-icon">🔄</span> Retry ${retryCount + 1}/${MAX_RETRIES}...</span>`;
       
-      playBeep("error");
-      speak("Koneksi gagal. Mencoba ulang...");
+      speak("Koneksi gagal. Mencoba ulang...", "error");
       
       setTimeout(() => {
         processQRCode(decodedText, device, result, retryCount + 1);
@@ -903,8 +914,7 @@ async function processQRCode(decodedText, device, result, retryCount = 0) {
     } else {
       result.className = "status-error";
       result.innerHTML = `<span class="result-status"><span class="result-status-icon">❌</span> Koneksi gagal</span>`;
-      playBeep("error");
-      speak("Koneksi gagal. Periksa jaringan anda");
+      speak("Koneksi gagal. Periksa jaringan anda", "error");
     }
   }
   
@@ -932,8 +942,7 @@ function handleScanSuccess(data, decodedText, result) {
         <span class="result-time">LINE ${line}</span>
       </span>
     `;
-    playBeep("success");
-    speak(`Pengisian diizinkan di line ${line}`);
+    speak(`Pengisian diizinkan di line ${line}`, "success");
   } else {
     let fullUnitNumber = decodedText;
     let jamRefuel = "";
@@ -950,17 +959,14 @@ function handleScanSuccess(data, decodedText, result) {
         <span class="result-remain">Sisa ${waktuSisaStr} lagi</span>
       </span>
     `;
-    playBeep("error");
     
     const unitInti = extractUnitNumber(decodedText);
-    speak(`Mohon maaf unit ${unitInti} sudah melakukan pengisian pukul ${jamRefuel} di line ${allowedLine}`);
+    speak(`Mohon maaf unit ${unitInti} sudah melakukan pengisian pukul ${jamRefuel} di line ${allowedLine}`, "error");
   }
 }
 
 // ═══════════════════════════════════════════════════════════════
-// DUAL BEEP SYSTEM (V7)
-// SUCCESS: 2x beep ceria (centang)
-// ERROR: 3x beep serius (tetot)
+// DUAL BEEP SYSTEM (V8)
 // ═══════════════════════════════════════════════════════════════
 function playBeep(type) {
   try {
@@ -985,7 +991,6 @@ function playBeepSound(audioContext, type) {
   gain.connect(audioContext.destination);
   
   if (type === "scanning") {
-    // SCANNING: 1x beep pendek (info)
     osc.frequency.value = 800;
     gain.gain.setValueAtTime(0.25, audioContext.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
@@ -993,15 +998,13 @@ function playBeepSound(audioContext, type) {
     osc.stop(audioContext.currentTime + 0.2);
     
   } else if (type === "success") {
-    // SUCCESS: 2x beep CERIA (centang/check sound - tinggi)
-    // Beep 1
+    // SUCCESS: 2x beep CERIA (centang)
     osc.frequency.value = 900;
     gain.gain.setValueAtTime(0.4, audioContext.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
     osc.start(audioContext.currentTime);
     osc.stop(audioContext.currentTime + 0.15);
     
-    // Beep 2 (setelah 200ms)
     const osc2 = audioContext.createOscillator();
     const gain2 = audioContext.createGain();
     osc2.connect(gain2);
@@ -1013,15 +1016,13 @@ function playBeepSound(audioContext, type) {
     osc2.stop(audioContext.currentTime + 0.4);
     
   } else if (type === "error") {
-    // ERROR: 3x beep SERIUS (tetot/buzzer sound - rendah)
-    // Beep 1
+    // ERROR: 3x beep SERIUS (tetot)
     osc.frequency.value = 400;
     gain.gain.setValueAtTime(0.4, audioContext.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
     osc.start(audioContext.currentTime);
     osc.stop(audioContext.currentTime + 0.2);
     
-    // Beep 2 (setelah 150ms)
     const osc2 = audioContext.createOscillator();
     const gain2 = audioContext.createGain();
     osc2.connect(gain2);
@@ -1032,7 +1033,6 @@ function playBeepSound(audioContext, type) {
     osc2.start(audioContext.currentTime + 0.35);
     osc2.stop(audioContext.currentTime + 0.55);
     
-    // Beep 3 (setelah 150ms lagi)
     const osc3 = audioContext.createOscillator();
     const gain3 = audioContext.createGain();
     osc3.connect(gain3);
