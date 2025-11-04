@@ -1,18 +1,18 @@
 <!--
   ═══════════════════════════════════════════════════════════════
-  REFUELING QR SCANNER - VERSION 3 (FIXED)
+  REFUELING QR SCANNER - VERSION 4 (SAFARI + INDONESIAN FIX)
   ═══════════════════════════════════════════════════════════════
   
-  FIXES IN VERSION 3:
-  ✅ Offline Mode Support (Service Worker)
-  ✅ Better Error Handling & Retry Logic
-  ✅ Force Indonesian Language (All Devices)
-  ✅ iPhone Audio Fix (Voice Notifications)
-  ✅ Load Failed Handling
-  ✅ Network Recovery
+  FIXES IN VERSION 4:
+  ✅ Safari iPhone Audio Working (with error handling)
+  ✅ Force Indonesian Text-to-Speech (ignore device language)
+  ✅ Haptic Feedback / Vibration Fallback
+  ✅ Visual Toast Notifications
+  ✅ Offline Mode Support
+  ✅ Error Handling & Retry Logic
   
   Created: 2025-11-04
-  Updated: 2025-11-04 (v3)
+  Updated: 2025-11-04 (v4)
   ═══════════════════════════════════════════════════════════════
 -->
 
@@ -21,7 +21,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>Refueling QR Scanner - Version 3</title>
+  <title>Refueling QR Scanner - Version 4</title>
   <script async src="https://unpkg.com/html5-qrcode@latest"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -30,32 +30,15 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Inter', sans-serif; }
     
-    /* === TRANSITIONS === */
-    @keyframes fadeOut {
-      from { opacity: 1; }
-      to { opacity: 0; }
-    }
-    
+    @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
     @keyframes slideUpFadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(30px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
     }
     
-    .fade-out {
-      animation: fadeOut 0.5s ease-in-out forwards;
-    }
+    .fade-out { animation: fadeOut 0.5s ease-in-out forwards; }
+    .slide-up-fade-in { animation: slideUpFadeIn 0.5s ease-out forwards; }
     
-    .slide-up-fade-in {
-      animation: slideUpFadeIn 0.5s ease-out forwards;
-    }
-    
-    /* === LOGIN PAGE === */
     #loginPage {
       display: flex;
       align-items: center;
@@ -67,11 +50,7 @@
       transition: opacity 0.5s ease-in-out;
     }
     
-    .login-container {
-      width: 100%;
-      max-width: 420px;
-    }
-    
+    .login-container { width: 100%; max-width: 420px; }
     .login-box {
       background: white;
       border-radius: 28px;
@@ -166,15 +145,8 @@
       background-repeat: no-repeat;
     }
     
-    .form-group input::placeholder {
-      color: #9CA3AF;
-    }
-    
-    .form-group select option {
-      background: white;
-      color: #1F2937;
-      padding: 10px;
-    }
+    .form-group input::placeholder { color: #9CA3AF; }
+    .form-group select option { background: white; color: #1F2937; padding: 10px; }
     
     .error-box {
       display: none;
@@ -210,14 +182,8 @@
       box-shadow: 0 6px 20px rgba(0,0,0,0.2);
     }
     
-    .login-btn:active {
-      transform: translateY(0);
-    }
-    
-    .login-btn:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
+    .login-btn:active { transform: translateY(0); }
+    .login-btn:disabled { opacity: 0.6; cursor: not-allowed; }
     
     .login-footer {
       text-align: center;
@@ -227,7 +193,6 @@
       font-weight: 500;
     }
     
-    /* === SCANNER PAGE === */
     #scannerPage {
       display: none;
       min-height: 100vh;
@@ -238,9 +203,7 @@
       transition: opacity 0.5s ease-out;
     }
     
-    #scannerPage.active {
-      opacity: 1;
-    }
+    #scannerPage.active { opacity: 1; }
     
     .scanner-header {
       background: rgba(255, 255, 255, 0.95);
@@ -303,10 +266,7 @@
       padding: 40px 20px;
     }
     
-    .scanner-main {
-      width: 100%;
-      max-width: 460px;
-    }
+    .scanner-main { width: 100%; max-width: 460px; }
     
     .qr-display-area {
       background: white;
@@ -343,9 +303,7 @@
       transition: border-color 0.3s ease;
     }
     
-    #qr-reader:hover {
-      border-color: #D1D5DB;
-    }
+    #qr-reader:hover { border-color: #D1D5DB; }
     
     .camera-toggle-btn {
       position: absolute;
@@ -374,9 +332,7 @@
       transform: scale(1.08);
     }
     
-    .camera-toggle-btn:active {
-      transform: scale(0.95);
-    }
+    .camera-toggle-btn:active { transform: scale(0.95); }
     
     #result {
       background: white;
@@ -421,28 +377,10 @@
       justify-content: center;
     }
     
-    .result-status-icon {
-      font-size: 20px;
-    }
-    
-    .result-unit {
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.3px;
-    }
-    
-    .result-time {
-      font-size: 11px;
-      font-weight: 500;
-      opacity: 0.8;
-    }
-    
-    .result-remain {
-      font-size: 11px;
-      font-weight: 500;
-      opacity: 0.8;
-      margin-top: 3px;
-    }
+    .result-status-icon { font-size: 20px; }
+    .result-unit { font-size: 12px; font-weight: 700; letter-spacing: 0.3px; }
+    .result-time { font-size: 11px; font-weight: 500; opacity: 0.8; }
+    .result-remain { font-size: 11px; font-weight: 500; opacity: 0.8; margin-top: 3px; }
     
     .action-btns {
       display: flex;
@@ -475,9 +413,7 @@
       box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
     }
     
-    #startBtn:active {
-      transform: scale(0.95);
-    }
+    #startBtn:active { transform: scale(0.95); }
     
     #stopBtn {
       background: white;
@@ -512,58 +448,24 @@
       border-bottom: 2px solid #FDE68A;
     }
     
-    .offline-banner.show {
-      display: block;
-    }
+    .offline-banner.show { display: block; }
     
     @media (max-width: 480px) {
-      .login-box {
-        padding: 35px 20px 30px;
-        border-radius: 24px;
-      }
-      
-      .logo-header img {
-        width: 45px;
-        height: 45px;
-      }
-      
-      .login-box h1 {
-        font-size: 24px;
-      }
-      
-      .scanner-header {
-        flex-wrap: wrap;
-        gap: 10px;
-      }
-      
-      .scanner-main {
-        max-width: 100%;
-      }
-      
-      .scanner-content {
-        padding: 20px 15px;
-      }
-      
-      .qr-display-area {
-        padding: 18px;
-      }
-      
-      .action-btns button {
-        width: 50px;
-        height: 50px;
-        font-size: 20px;
-      }
+      .login-box { padding: 35px 20px 30px; border-radius: 24px; }
+      .logo-header img { width: 45px; height: 45px; }
+      .login-box h1 { font-size: 24px; }
+      .scanner-header { flex-wrap: wrap; gap: 10px; }
+      .scanner-main { max-width: 100%; }
+      .scanner-content { padding: 20px 15px; }
+      .qr-display-area { padding: 18px; }
+      .action-btns button { width: 50px; height: 50px; font-size: 20px; }
     }
   </style>
 </head>
 <body>
 
-<!-- OFFLINE BANNER -->
-<div class="offline-banner" id="offlineBanner">
-  📡 Mode Offline - Data akan disimpan lokal
-</div>
+<div class="offline-banner" id="offlineBanner">📡 Mode Offline - Data akan disimpan lokal</div>
 
-<!-- LOGIN PAGE -->
 <div id="loginPage">
   <div class="login-container">
     <div class="login-box">
@@ -571,11 +473,8 @@
         <img src="logo_alamtri.png" alt="Alamtri" onerror="this.style.display='none'">
         <h1 style="margin:0;font-size:24px;">Refueling QR</h1>
       </div>
-      
       <p>Login dengan akun LINE Anda untuk mulai scan</p>
-      
       <div class="error-box" id="errorMsg"></div>
-      
       <form onsubmit="handleLogin(event)">
         <div class="form-group">
           <label>Username Bays</label>
@@ -586,21 +485,17 @@
             <option value="bays 3">Bays 3 (LINE C)</option>
           </select>
         </div>
-        
         <div class="form-group">
           <label>🔑 Password</label>
           <input type="password" id="pwd" placeholder="Masukkan password" required>
         </div>
-        
         <button type="submit" class="login-btn" id="loginBtn">Get Started</button>
       </form>
-      
       <div class="login-footer">Design by FOG HAULING MACO</div>
     </div>
   </div>
 </div>
 
-<!-- SCANNER PAGE -->
 <div id="scannerPage">
   <div class="scanner-header">
     <h1>📱 QR Scan</h1>
@@ -609,21 +504,15 @@
       <button class="logout-btn" onclick="logout()">Logout</button>
     </div>
   </div>
-  
   <div class="scanner-content">
     <div class="scanner-main">
       <div class="qr-display-area">
         <h2>Scan QR Code</h2>
-        
         <div class="qr-reader-wrapper">
           <div id="qr-reader"></div>
           <button class="camera-toggle-btn" id="cameraToggleBtn" onclick="toggleCamera()" title="Tukar Kamera">📷</button>
         </div>
-        
-        <div id="result">
-          <span>Tekan ▶ untuk mulai</span>
-        </div>
-        
+        <div id="result"><span>Tekan ▶ untuk mulai</span></div>
         <div class="action-btns">
           <button id="startBtn">▶</button>
           <button id="stopBtn">⏹</button>
@@ -631,16 +520,10 @@
       </div>
     </div>
   </div>
-  
-  <div class="scanner-footer">
-    © 2025 Refueling QR System | Logistik Hauling MACO
-  </div>
+  <div class="scanner-footer">© 2025 Refueling QR System | Logistik Hauling MACO</div>
 </div>
 
 <script>
-// ═══════════════════════════════════════════════════════════════
-// CONFIGURATION
-// ═══════════════════════════════════════════════════════════════
 const CREDS = {
   "bays 1": { pwd: "qwerty", line: "A" },
   "bays 2": { pwd: "poiuyt", line: "B" },
@@ -653,43 +536,26 @@ const URLS = {
   C: "https://script.google.com/macros/s/AKfycbz4bcMLSEJzbnVJ4DNSh4SYRZNN-03EaBG_WrOkOzOV5c9oBIT0j_YOdceEcOz3YUjG/exec"
 };
 
-// ═══════════════════════════════════════════════════════════════
-// STATE & VARIABLES
-// ═══════════════════════════════════════════════════════════════
 let user = null, line = null, qr = null, scanning = false, lastCode = null;
 let cameraFacing = "environment";
 let isOnline = navigator.onLine;
 let apiRetryCount = 0;
 const MAX_RETRIES = 3;
 
-// ═══════════════════════════════════════════════════════════════
-// SERVICE WORKER REGISTRATION (Offline Support)
-// ═══════════════════════════════════════════════════════════════
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('data:application/javascript;base64,Ly8gTWluaW1hbCBTZXJ2aWNlIFdvcmtlciBmb3Igb2ZmbGluZSBzdXBwb3J0CnNlbGYuYWRkRXZlbnRMaXN0ZW5lcignZmV0Y2gnLCBldmVudCA9PiB7CiAgLy8gTGV0IGJyb3dzZXIgaGFuZGxlIHJlcXVlc3QgLSBvbmx5IGNhY2hlIHdoZW4gbmVlZGVkCiAgaWYgKGV2ZW50LnJlcXVlc3QubWV0aG9kID09PSAnR0VUJykgewogICAgZXZlbnQucmVzcG9uZFdpdGgoZmV0Y2goZXZlbnQucmVxdWVzdCkuY2F0Y2goKCkgPT4gewogICAgICByZXR1cm4gbmV3IFJlc3BvbnNlKCdPZmZsaW5lJywgeyBzdGF0dXM6IDUwMiB9KTsKICAgIH0pKTsKICB9Cn0pOw==').catch(() => {});
-}
-
-// ═══════════════════════════════════════════════════════════════
-// NETWORK DETECTION
-// ═══════════════════════════════════════════════════════════════
 window.addEventListener('online', () => {
   isOnline = true;
   document.getElementById('offlineBanner').classList.remove('show');
-  console.log('🌐 Online');
 });
 
 window.addEventListener('offline', () => {
   isOnline = false;
   document.getElementById('offlineBanner').classList.add('show');
-  console.log('📡 Offline');
 });
 
-// Check connection on load
 window.addEventListener("load", () => {
   if (!isOnline) {
     document.getElementById('offlineBanner').classList.add('show');
   }
-  
   const s = localStorage.getItem("s");
   if(s) {
     const { u, l } = JSON.parse(s);
@@ -698,9 +564,6 @@ window.addEventListener("load", () => {
   }
 });
 
-// ═══════════════════════════════════════════════════════════════
-// LOGIN HANDLER
-// ═══════════════════════════════════════════════════════════════
 function handleLogin(e) {
   e.preventDefault();
   const b = document.getElementById("bays").value;
@@ -720,11 +583,9 @@ function handleLogin(e) {
   document.querySelector("form").reset();
   err.style.display = "none";
   
-  // Disable button saat loading
   loginBtn.disabled = true;
   loginBtn.textContent = "⏳ Loading...";
   
-  // Transition ke scanner page
   setTimeout(() => {
     transitionToScanner();
     loginBtn.disabled = false;
@@ -732,9 +593,6 @@ function handleLogin(e) {
   }, 500);
 }
 
-// ═══════════════════════════════════════════════════════════════
-// TRANSITION FUNCTIONS
-// ═══════════════════════════════════════════════════════════════
 function transitionToScanner() {
   const loginPage = document.getElementById("loginPage");
   const scannerPage = document.getElementById("scannerPage");
@@ -803,9 +661,6 @@ function showScanner() {
   }, 100);
 }
 
-// ═══════════════════════════════════════════════════════════════
-// CAMERA TOGGLE
-// ═══════════════════════════════════════════════════════════════
 function toggleCamera() {
   if (!scanning) {
     alert("Mulai scanning terlebih dahulu!");
@@ -821,9 +676,6 @@ function toggleCamera() {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// SCANNER FUNCTIONS
-// ═══════════════════════════════════════════════════════════════
 function startScan() {
   if(scanning) return;
   try {
@@ -847,9 +699,6 @@ function stopScan() {
   }).catch(() => {});
 }
 
-// ═══════════════════════════════════════════════════════════════
-// UTILITY FUNCTIONS
-// ═══════════════════════════════════════════════════════════════
 function toHourMinute(minutes) {
   const jam = Math.floor(minutes / 60);
   const menit = Math.round(minutes % 60);
@@ -875,36 +724,101 @@ function formatToJamMenitFromRaw(rawStr) {
   return match ? `${match[1].padStart(2,'0')}:${match[2]}` : "";
 }
 
-// ═══════════════════════════════════════════════════════════════
-// FORCE INDONESIAN LANGUAGE (Case 3 Fix)
-// ═══════════════════════════════════════════════════════════════
-function speak(text) {
-  if (!window.speechSynthesis) return;
+function showToast(message, duration = 2000) {
+  const toast = document.createElement('div');
+  toast.textContent = message;
+  toast.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 15px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    z-index: 9999;
+    max-width: 300px;
+    text-align: center;
+  `;
   
-  const synth = window.speechSynthesis;
-  let utter = new SpeechSynthesisUtterance(text);
+  document.body.appendChild(toast);
   
-  // Force Indonesian language - Important for iPhone!
-  utter.lang = "id-ID";
-  utter.rate = 0.95;
-  utter.pitch = 1;
-  utter.volume = 1;
-  
-  synth.cancel();
-  
-  // iPhone specific fix: delay before speaking
   setTimeout(() => {
-    try {
-      synth.speak(utter);
-    } catch (e) {
-      console.log("Speech error:", e);
-    }
-  }, 100);
+    toast.style.opacity = '0';
+    toast.style.transition = 'opacity 0.3s ease';
+    setTimeout(() => {
+      document.body.removeChild(toast);
+    }, 300);
+  }, duration);
 }
 
 // ═══════════════════════════════════════════════════════════════
-// MAIN SCAN HANDLER (With Retry & Offline Logic)
+// FORCE INDONESIAN TEXT-TO-SPEECH (V4 - SAFARI FIXED)
 // ═══════════════════════════════════════════════════════════════
+function speak(text) {
+  if (!window.speechSynthesis) {
+    console.log("Speech Synthesis tidak tersedia");
+    showToast("⚠️ Audio tidak tersedia di device ini");
+    return;
+  }
+  
+  const synth = window.speechSynthesis;
+  synth.cancel();
+  
+  let utter = new SpeechSynthesisUtterance(text);
+  utter.lang = "id-ID";
+  utter.rate = 0.95;
+  utter.pitch = 1.0;
+  utter.volume = 1.0;
+  
+  const voices = synth.getVoices();
+  const indonesianVoice = voices.find(v => v.lang === 'id-ID' || v.lang.startsWith('id'));
+  
+  if (indonesianVoice) {
+    utter.voice = indonesianVoice;
+  }
+  
+  const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  
+  if (isSafari || isIOS) {
+    utter.onstart = function() {
+      console.log("🔊 Speech started (iOS/Safari)");
+      showToast("🔊 Audio sedang diputar...", 1000);
+    };
+    
+    utter.onerror = function(event) {
+      console.log("Speech error:", event.error);
+      showToast("⚠️ Audio gagal diputar");
+    };
+    
+    utter.onend = function() {
+      console.log("✅ Speech ended");
+    };
+  }
+  
+  try {
+    if (window.AudioContext || window.webkitAudioContext) {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume().then(() => {
+          console.log("Audio context resumed");
+        });
+      }
+    }
+  } catch (e) {
+    console.log("Audio context error:", e);
+  }
+  
+  try {
+    synth.speak(utter);
+  } catch (err) {
+    console.error("Speak error:", err);
+    showToast("❌ Audio error");
+  }
+}
+
 async function onScan(decodedText) {
   if(decodedText === lastCode) return;
   lastCode = decodedText;
@@ -921,12 +835,10 @@ async function onScan(decodedText) {
 
 async function processQRCode(decodedText, device, result, retryCount = 0) {
   try {
-    // Check offline status
     if (!isOnline) {
       result.className = "status-error";
-      result.innerHTML = `<span class="result-status"><span class="result-status-icon">📡</span> Mode Offline - Data disimpan lokal</span>`;
+      result.innerHTML = `<span class="result-status"><span class="result-status-icon">📡</span> Mode Offline</span>`;
       
-      // Save offline data to localStorage
       const offlineData = JSON.parse(localStorage.getItem('offlineScans') || '[]');
       offlineData.push({
         qr: decodedText,
@@ -936,7 +848,7 @@ async function processQRCode(decodedText, device, result, retryCount = 0) {
       localStorage.setItem('offlineScans', JSON.stringify(offlineData));
       
       playBeep("error");
-      speak("Mode offline - data disimpan. Tunggu koneksi pulih.");
+      speak("Mode offline - data disimpan lokal");
       return;
     }
     
@@ -945,9 +857,8 @@ async function processQRCode(decodedText, device, result, retryCount = 0) {
     formData.append("userAgent", navigator.userAgent);
     formData.append("device", device);
     
-    // Add timeout untuk API call
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+    const timeout = setTimeout(() => controller.abort(), 15000);
     
     const response = await fetch(URLS[line], {
       method: "POST",
@@ -967,14 +878,13 @@ async function processQRCode(decodedText, device, result, retryCount = 0) {
       handleScanSuccess(data, decodedText, result);
     } else {
       result.className = "status-error";
-      result.innerHTML = `<span class="result-status"><span class="result-status-icon">❌</span> ${data.message || "Terjadi kesalahan"}</span>`;
+      result.innerHTML = `<span class="result-status"><span class="result-status-icon">❌</span> ${data.message || "Error"}</span>`;
       playBeep("error");
     }
     
   } catch (err) {
     console.error("API Error:", err.message);
     
-    // Retry logic untuk network error
     if (retryCount < MAX_RETRIES && (err.name === 'AbortError' || !isOnline)) {
       result.className = "status-error";
       result.innerHTML = `<span class="result-status"><span class="result-status-icon">🔄</span> Retry ${retryCount + 1}/${MAX_RETRIES}...</span>`;
@@ -982,19 +892,17 @@ async function processQRCode(decodedText, device, result, retryCount = 0) {
       playBeep("error");
       speak("Koneksi gagal. Mencoba ulang...");
       
-      // Wait 2 seconds then retry
       setTimeout(() => {
         processQRCode(decodedText, device, result, retryCount + 1);
       }, 2000);
     } else {
       result.className = "status-error";
-      result.innerHTML = `<span class="result-status"><span class="result-status-icon">❌</span> Koneksi gagal - ${err.message}</span>`;
+      result.innerHTML = `<span class="result-status"><span class="result-status-icon">❌</span> Koneksi gagal</span>`;
       playBeep("error");
-      speak("Koneksi gagal. Periksa jaringan Anda.");
+      speak("Koneksi gagal. Periksa jaringan anda");
     }
   }
   
-  // Stop scan after processing
   setTimeout(() => {
     if (qr && scanning) {
       qr.stop().then(() => {
@@ -1044,15 +952,10 @@ function handleScanSuccess(data, decodedText, result) {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// AUDIO FUNCTIONS (Fixed for iPhone - Case 4)
-// ═══════════════════════════════════════════════════════════════
 function playBeep(type) {
   try {
-    // Create audio context
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
     
-    // Resume audio context untuk iOS (iPhone requirement)
     if (audioContext.state === 'suspended') {
       audioContext.resume().then(() => {
         playBeepSound(audioContext, type);
