@@ -1,10 +1,12 @@
+
+
+
 <!--
   ═══════════════════════════════════════════════════════════════
-  REFUELING QR SCANNER - VERSION 9 (FINAL EDITION)
-  UPDATED: Single Spreadsheet + Single URL Setup
+  REFUELING QR SCANNER - VERSION 10 (PRODUCTION READY)
   ═══════════════════════════════════════════════════════════════
   
-  FEATURES IN VERSION 9:
+  FEATURES:
   ✅ Android: Voice langsung (tanpa delay)
   ✅ iPhone: Voice setelah beep (1 detik delay)
   ✅ Dual Beep System (Success centang vs Failure tetot)
@@ -12,19 +14,11 @@
   ✅ Vibration Feedback (Haptic)
   ✅ Offline Mode Support
   ✅ Multi-device Optimized
-  ✅ Single URL for all LINEs (A, B, C)
+  ✅ 3 Line Support (A, B, C)
+  ✅ Centralized Backend (1 Apps Script)
   
-  BEHAVIOR:
-  Android:
-  - Success: Beep centang + Voice "Pengisian diizinkan..."
-  - Failure: Beep tetot + Voice "Mohon maaf unit..."
-  
-  iPhone (Safari/Chrome):
-  - Success: Beep centang (2x) → Voice "Pengisian diizinkan..."
-  - Failure: Beep tetot (3x) → Voice "Mohon maaf unit..."
-  
-  Created: 2025-11-04
-  Version: 9 (Final - Single URL)
+  Created: 2025-11-29
+  Version: 10 (Production - 3 Line Support)
   ═══════════════════════════════════════════════════════════════
 -->
 
@@ -33,7 +27,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>Refueling QR Scanner - Version 9</title>
+  <title>Refueling QR Scanner - Version 10</title>
   <script async src="https://unpkg.com/html5-qrcode@latest"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -542,7 +536,13 @@ const CREDS = {
   "bays 3": { pwd: "12345", line: "C" }
 };
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwQtIVh_7bKHYTfm_Inuq3TrQMWGL6nhZxw449sl89_k3UH7jJDl-x1h3kznqL7i_2n/exec";
+const DEPLOYMENT_URL = "https://script.google.com/macros/s/AKfycbybPe1S9miueYGXpsQA-eroWxyplUaypVftL7nofEO8K17B4JSbjQhNxriUh6a8118/exec";
+
+const URLS = {
+  A: DEPLOYMENT_URL,
+  B: DEPLOYMENT_URL,
+  C: DEPLOYMENT_URL
+};
 
 let user = null, line = null, qr = null, scanning = false, lastCode = null;
 let cameraFacing = "environment";
@@ -684,6 +684,29 @@ function toggleCamera() {
   }
 }
 
+function startScan() {
+  if(scanning) return;
+  try {
+    document.getElementById("result").innerHTML = '<span class="result-status"><span class="result-status-icon">🔄</span> Membuka kamera...</span>';
+    qr = new Html5Qrcode("qr-reader");
+    qr.start({ facingMode: cameraFacing }, { fps: 10, qrbox: 250 }, onScan, () => {});
+    document.getElementById("result").innerHTML = '<span class="result-status"><span class="result-status-icon">📷</span> Arahkan ke QR...</span>';
+    scanning = true;
+    lastCode = null;
+  } catch(e) {
+    document.getElementById("result").innerHTML = `<span class="result-status"><span class="result-status-icon">❌</span> ${e.message}</span>`;
+  }
+}
+
+function stopScan() {
+  if(!qr || !scanning) return;
+  qr.stop().then(() => {
+    qr.clear();
+    scanning = false;
+    document.getElementById("result").innerHTML = '<span class="result-status"><span class="result-status-icon">🔴</span> Dihentikan</span>';
+  }).catch(() => {});
+}
+
 function toHourMinute(minutes) {
   const jam = Math.floor(minutes / 60);
   const menit = Math.round(minutes % 60);
@@ -711,12 +734,9 @@ function formatToJamMenitFromRaw(rawStr) {
 
 function speak(text, beepType = null) {
   showVibrateNotification("🔊 Notifikasi", text);
-  
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  
   if (beepType) {
     playBeep(beepType);
-    
     if (isIOS) {
       setTimeout(() => {
         speakVoice(text);
@@ -731,23 +751,18 @@ function speak(text, beepType = null) {
 
 function speakVoice(text) {
   if (!window.speechSynthesis) return;
-  
   const synth = window.speechSynthesis;
   synth.cancel();
-  
   let utter = new SpeechSynthesisUtterance(text);
   utter.lang = "id-ID";
   utter.rate = 0.95;
   utter.pitch = 1.0;
   utter.volume = 1.0;
-  
   const voices = synth.getVoices();
   const indonesianVoice = voices.find(v => v.lang === 'id-ID' || v.lang.startsWith('id'));
-  
   if (indonesianVoice) {
     utter.voice = indonesianVoice;
   }
-  
   try {
     if (window.AudioContext || window.webkitAudioContext) {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -758,7 +773,6 @@ function speakVoice(text) {
   } catch (e) {
     console.log("Audio context error:", e);
   }
-  
   try {
     synth.speak(utter);
   } catch (err) {
@@ -776,14 +790,12 @@ function showVibrateNotification(title, message) {
 function showLargeToast(title, message, duration = 4000) {
   const existing = document.querySelector('.toast-notification');
   if (existing) existing.remove();
-  
   const toast = document.createElement('div');
   toast.className = 'toast-notification';
   toast.innerHTML = `
     <div style="font-weight: 700; margin-bottom: 8px; font-size: 18px; line-height: 1.2;">${title}</div>
     <div style="font-weight: 500; font-size: 15px; line-height: 1.6;">${message}</div>
   `;
-  
   toast.style.cssText = `
     position: fixed;
     bottom: 80px;
@@ -800,9 +812,7 @@ function showLargeToast(title, message, duration = 4000) {
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
     border: 1px solid rgba(255, 255, 255, 0.2);
   `;
-  
   document.body.appendChild(toast);
-  
   setTimeout(() => {
     toast.style.opacity = '0';
     toast.style.transform = 'translateX(-50%) translateY(10px)';
@@ -822,10 +832,8 @@ async function onScan(decodedText) {
   result.className = "";
   result.innerHTML = `<span class="result-status"><span class="result-status-icon">✓</span> QR: ${decodedText}</span>`;
   playBeep("scanning");
-  
   const device = /Mobi|Android/i.test(navigator.userAgent) ? "Mobile" : "Desktop";
   apiRetryCount = 0;
-  
   processQRCode(decodedText, device, result);
 }
 
@@ -834,7 +842,6 @@ async function processQRCode(decodedText, device, result, retryCount = 0) {
     if (!isOnline) {
       result.className = "status-error";
       result.innerHTML = `<span class="result-status"><span class="result-status-icon">📡</span> Mode Offline</span>`;
-      
       const offlineData = JSON.parse(localStorage.getItem('offlineScans') || '[]');
       offlineData.push({
         qr: decodedText,
@@ -842,33 +849,26 @@ async function processQRCode(decodedText, device, result, retryCount = 0) {
         line: line
       });
       localStorage.setItem('offlineScans', JSON.stringify(offlineData));
-      
       speak("Mode offline - data disimpan lokal", "error");
       return;
     }
-    
     const formData = new FormData();
     formData.append("qrData", decodedText);
     formData.append("userAgent", navigator.userAgent);
     formData.append("device", device);
-    
+    formData.append("line", line);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
-    
-    const response = await fetch(SCRIPT_URL, {
+    const response = await fetch(URLS[line], {
       method: "POST",
       body: formData,
       signal: controller.signal
     });
-    
     clearTimeout(timeout);
-    
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
-    
     const data = await response.json();
-    
     if (data.status === "success") {
       handleScanSuccess(data, decodedText, result);
     } else {
@@ -876,16 +876,12 @@ async function processQRCode(decodedText, device, result, retryCount = 0) {
       result.innerHTML = `<span class="result-status"><span class="result-status-icon">❌</span> ${data.message || "Error"}</span>`;
       speak(data.message || "Terjadi kesalahan", "error");
     }
-    
   } catch (err) {
     console.error("API Error:", err.message);
-    
     if (retryCount < MAX_RETRIES && (err.name === 'AbortError' || !isOnline)) {
       result.className = "status-error";
       result.innerHTML = `<span class="result-status"><span class="result-status-icon">🔄</span> Retry ${retryCount + 1}/${MAX_RETRIES}...</span>`;
-      
       speak("Koneksi gagal. Mencoba ulang...", "error");
-      
       setTimeout(() => {
         processQRCode(decodedText, device, result, retryCount + 1);
       }, 2000);
@@ -895,7 +891,6 @@ async function processQRCode(decodedText, device, result, retryCount = 0) {
       speak("Koneksi gagal. Periksa jaringan anda", "error");
     }
   }
-  
   setTimeout(() => {
     if (qr && scanning) {
       qr.stop().then(() => {
@@ -910,7 +905,6 @@ function handleScanSuccess(data, decodedText, result) {
   const status = data.refuelingStatus;
   const minutes = data.minutesRemaining;
   const waktuSisaStr = toHourMinute(minutes);
-  
   if (status === "ALLOWED") {
     result.className = "status-allowed";
     result.innerHTML = `
@@ -928,7 +922,6 @@ function handleScanSuccess(data, decodedText, result) {
       jamRefuel = formatToJamMenitFromRaw(data.allowedTimestampStr);
     }
     const allowedLine = data.lineName || line;
-    
     result.className = "status-disallowed";
     result.innerHTML = `
       <span class="result-status">
@@ -937,7 +930,6 @@ function handleScanSuccess(data, decodedText, result) {
         <span class="result-remain">Sisa ${waktuSisaStr} lagi</span>
       </span>
     `;
-    
     const unitInti = extractUnitNumber(decodedText);
     speak(`Mohon maaf unit ${unitInti} sudah melakukan pengisian pukul ${jamRefuel} di line ${allowedLine}`, "error");
   }
@@ -946,7 +938,6 @@ function handleScanSuccess(data, decodedText, result) {
 function playBeep(type) {
   try {
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    
     if (audioContext.state === 'suspended') {
       audioContext.resume().then(() => {
         playBeepSound(audioContext, type);
@@ -964,21 +955,18 @@ function playBeepSound(audioContext, type) {
   const gain = audioContext.createGain();
   osc.connect(gain);
   gain.connect(audioContext.destination);
-  
   if (type === "scanning") {
     osc.frequency.value = 800;
     gain.gain.setValueAtTime(0.25, audioContext.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
     osc.start(audioContext.currentTime);
     osc.stop(audioContext.currentTime + 0.2);
-    
   } else if (type === "success") {
     osc.frequency.value = 900;
     gain.gain.setValueAtTime(0.4, audioContext.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
     osc.start(audioContext.currentTime);
     osc.stop(audioContext.currentTime + 0.15);
-    
     const osc2 = audioContext.createOscillator();
     const gain2 = audioContext.createGain();
     osc2.connect(gain2);
@@ -988,14 +976,12 @@ function playBeepSound(audioContext, type) {
     gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
     osc2.start(audioContext.currentTime + 0.25);
     osc2.stop(audioContext.currentTime + 0.4);
-    
   } else if (type === "error") {
     osc.frequency.value = 400;
     gain.gain.setValueAtTime(0.4, audioContext.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
     osc.start(audioContext.currentTime);
     osc.stop(audioContext.currentTime + 0.2);
-    
     const osc2 = audioContext.createOscillator();
     const gain2 = audioContext.createGain();
     osc2.connect(gain2);
@@ -1005,7 +991,6 @@ function playBeepSound(audioContext, type) {
     gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.55);
     osc2.start(audioContext.currentTime + 0.35);
     osc2.stop(audioContext.currentTime + 0.55);
-    
     const osc3 = audioContext.createOscillator();
     const gain3 = audioContext.createGain();
     osc3.connect(gain3);
@@ -1016,29 +1001,6 @@ function playBeepSound(audioContext, type) {
     osc3.start(audioContext.currentTime + 0.7);
     osc3.stop(audioContext.currentTime + 0.9);
   }
-}
-
-function startScan() {
-  if(scanning) return;
-  try {
-    document.getElementById("result").innerHTML = '<span class="result-status"><span class="result-status-icon">🔄</span> Membuka kamera...</span>';
-    qr = new Html5Qrcode("qr-reader");
-    qr.start({ facingMode: cameraFacing }, { fps: 10, qrbox: 250 }, onScan, () => {});
-    document.getElementById("result").innerHTML = '<span class="result-status"><span class="result-status-icon">📷</span> Arahkan ke QR...</span>';
-    scanning = true;
-    lastCode = null;
-  } catch(e) {
-    document.getElementById("result").innerHTML = `<span class="result-status"><span class="result-status-icon">❌</span> ${e.message}</span>`;
-  }
-}
-
-function stopScan() {
-  if(!qr || !scanning) return;
-  qr.stop().then(() => {
-    qr.clear();
-    scanning = false;
-    document.getElementById("result").innerHTML = '<span class="result-status"><span class="result-status-icon">🔴</span> Dihentikan</span>';
-  }).catch(() => {});
 }
 </script>
 </body>
