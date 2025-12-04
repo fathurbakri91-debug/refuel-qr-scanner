@@ -1,34 +1,10 @@
-
-
-
-<!--
-  ═══════════════════════════════════════════════════════════════
-  REFUELING QR SCANNER - VERSION 10 (PRODUCTION READY)
-  ═══════════════════════════════════════════════════════════════
-  
-  FEATURES:
-  ✅ Android: Voice langsung (tanpa delay)
-  ✅ iPhone: Voice setelah beep (1 detik delay)
-  ✅ Dual Beep System (Success centang vs Failure tetot)
-  ✅ Visual Toast Notification (100% reliable)
-  ✅ Vibration Feedback (Haptic)
-  ✅ Offline Mode Support
-  ✅ Multi-device Optimized
-  ✅ 3 Line Support (A, B, C)
-  ✅ Centralized Backend (1 Apps Script)
-  
-  Created: 2025-11-29
-  Version: 10 (Production - 3 Line Support)
-  ═══════════════════════════════════════════════════════════════
--->
-
 <!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>Refueling QR Scanner - Version 10</title>
-  <script async src="https://unpkg.com/html5-qrcode@latest"></script>
+  <title>Refueling QR Scanner - Version 12.4 Final</title>
+  <script src="https://unpkg.com/html5-qrcode@latest"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -375,6 +351,12 @@
       color: #92400E;
     }
     
+    #result.status-invalid {
+      background: #FEE2E2;
+      border-color: #FECACA;
+      color: #991B1B;
+    }
+    
     .result-status {
       display: flex;
       flex-direction: column;
@@ -476,7 +458,6 @@
   <div class="login-container">
     <div class="login-box">
       <div class="logo-header">
-        <img src="logo_alamtri.png" alt="Alamtri" onerror="this.style.display='none'">
         <h1 style="margin:0;font-size:24px;">Refueling QR</h1>
       </div>
       <p>Login dengan akun LINE Anda untuk mulai scan</p>
@@ -536,23 +517,22 @@ const CREDS = {
   "bays 3": { pwd: "12345", line: "C" }
 };
 
-const DEPLOYMENT_URL = "https://script.google.com/macros/s/AKfycbybPe1S9miueYGXpsQA-eroWxyplUaypVftL7nofEO8K17B4JSbjQhNxriUh6a8118/exec";
-
-const URLS = {
-  A: DEPLOYMENT_URL,
-  B: DEPLOYMENT_URL,
-  C: DEPLOYMENT_URL
-};
+// ✅ UPDATED URL - Apps Script V5.3
+const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbxXmooOLgITLT1hTRUjE_ga6b1PSsvAMfWfsZRmU6hvjSSCY5P-8D1Ko65TX4lP1Qyk/exec";
 
 let user = null, line = null, qr = null, scanning = false, lastCode = null;
 let cameraFacing = "environment";
 let isOnline = navigator.onLine;
 let apiRetryCount = 0;
 const MAX_RETRIES = 3;
+let apiUrl = DEFAULT_API_URL;
+let validUnitIds = new Set();
+let refuelDB = {};
 
 window.addEventListener('online', () => {
   isOnline = true;
   document.getElementById('offlineBanner').classList.remove('show');
+  loadRefuelDatabase();
 });
 
 window.addEventListener('offline', () => {
@@ -569,8 +549,60 @@ window.addEventListener("load", () => {
     const { u, l } = JSON.parse(s);
     user = u; line = l;
     showScanner();
+    loadRefuelDatabase();
   }
 });
+
+function extractUnitIdFromQR(qrData) {
+  const normalized = String(qrData).trim().toUpperCase();
+  if (normalized.includes('|')) {
+    return normalized.split('|')[0].trim();
+  }
+  return normalized;
+}
+
+async function loadRefuelDatabase() {
+  try {
+    if (!isOnline) return;
+    
+    const formData = new FormData();
+    formData.append("action", "getRefuelDB");
+    formData.append("line", line);
+    
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      body: formData
+    });
+    
+    const data = await response.json();
+    if (data.status === 'success') {
+      validUnitIds = new Set(data.refuelDB.validUnitIds || []);
+      refuelDB = data.refuelDB.units || {};
+      console.log(`✅ Loaded ${validUnitIds.size} valid units`);
+    }
+  } catch (err) {
+    console.error('loadRefuelDatabase error:', err);
+  }
+}
+
+function isValidUnitFrontend(unitId) {
+  const normalized = String(unitId).trim().toUpperCase();
+  const extractedUnit = normalized.includes('|') 
+    ? normalized.split('|')[0].trim() 
+    : normalized;
+  
+  if (validUnitIds.size > 0 && !validUnitIds.has(extractedUnit)) {
+    console.warn(`❌ Invalid unit: ${extractedUnit} - tidak ada di database`);
+    return false;
+  }
+  
+  if (extractedUnit === lastCode) {
+    console.warn(`⚠️ Duplicate scan: ${extractedUnit}`);
+    return false;
+  }
+  
+  return true;
+}
 
 function handleLogin(e) {
   e.preventDefault();
@@ -594,11 +626,18 @@ function handleLogin(e) {
   loginBtn.disabled = true;
   loginBtn.textContent = "⏳ Loading...";
   
-  setTimeout(() => {
-    transitionToScanner();
+  loadRefuelDatabase().then(() => {
+    setTimeout(() => {
+      transitionToScanner();
+      loginBtn.disabled = false;
+      loginBtn.textContent = "Get Started";
+    }, 500);
+  }).catch(() => {
+    err.textContent = "❌ Gagal load database dari server";
+    err.style.display = "block";
     loginBtn.disabled = false;
     loginBtn.textContent = "Get Started";
-  }, 500);
+  });
 }
 
 function transitionToScanner() {
@@ -614,7 +653,7 @@ function transitionToScanner() {
     scannerPage.classList.add("slide-up-fade-in");
     scannerPage.classList.add("active");
     
-    document.getElementById("userInfo").textContent = `👤 ${user.toUpperCase()} (${line})`;
+    document.getElementById("userInfo").textContent = `👤 ${user.toUpperCase()} (${line}) | Units: ${validUnitIds.size}`;
     
     setTimeout(() => {
       const sb = document.getElementById("startBtn");
@@ -631,6 +670,8 @@ function logout() {
   if(confirm("Logout?")) {
     localStorage.removeItem("s");
     user = null; line = null;
+    validUnitIds.clear();
+    refuelDB = {};
     cameraFacing = "environment";
     apiRetryCount = 0;
     if(qr && scanning) qr.stop().then(() => qr.clear()).catch(() => {});
@@ -684,29 +725,6 @@ function toggleCamera() {
   }
 }
 
-function startScan() {
-  if(scanning) return;
-  try {
-    document.getElementById("result").innerHTML = '<span class="result-status"><span class="result-status-icon">🔄</span> Membuka kamera...</span>';
-    qr = new Html5Qrcode("qr-reader");
-    qr.start({ facingMode: cameraFacing }, { fps: 10, qrbox: 250 }, onScan, () => {});
-    document.getElementById("result").innerHTML = '<span class="result-status"><span class="result-status-icon">📷</span> Arahkan ke QR...</span>';
-    scanning = true;
-    lastCode = null;
-  } catch(e) {
-    document.getElementById("result").innerHTML = `<span class="result-status"><span class="result-status-icon">❌</span> ${e.message}</span>`;
-  }
-}
-
-function stopScan() {
-  if(!qr || !scanning) return;
-  qr.stop().then(() => {
-    qr.clear();
-    scanning = false;
-    document.getElementById("result").innerHTML = '<span class="result-status"><span class="result-status-icon">🔴</span> Dihentikan</span>';
-  }).catch(() => {});
-}
-
 function toHourMinute(minutes) {
   const jam = Math.floor(minutes / 60);
   const menit = Math.round(minutes % 60);
@@ -714,22 +732,39 @@ function toHourMinute(minutes) {
 }
 
 function extractUnitNumber(qrText) {
+  const normalized = String(qrText).trim().toUpperCase();
+  const unitPart = normalized.includes('|') 
+    ? normalized.split('|')[0].trim() 
+    : normalized;
+  
   const regex = /^(DT)\d{2}0-(\d{4})/i;
-  const match = qrText.match(regex);
-  return match ? match[1].toUpperCase() + match[2] : qrText;
+  const match = unitPart.match(regex);
+  return match ? match[1].toUpperCase() + match[2] : unitPart;
 }
 
-function formatToJamMenitFromRaw(rawStr) {
-  if (!rawStr) return "";
-  if (rawStr.includes('T')) {
-    let dt = new Date(rawStr);
-    let jam = dt.getUTCHours() + 7;
-    if (jam >= 24) jam -= 24;
-    let menit = dt.getUTCMinutes();
-    return jam.toString().padStart(2, '0') + ":" + menit.toString().padStart(2, '0');
+// ✅ SIMPLIFIED: Parse DD/MM/YYYY HH:MM:SS format dari backend
+function parseTimestampSimple(timestampStr) {
+  if (!timestampStr) return "";
+  
+  console.log(`[V12.4] Raw timestamp: ${timestampStr}`);
+  
+  try {
+    // Format: "04/12/2025 17:03:32"
+    const match = timestampStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):\d{2}/);
+    if (match) {
+      const jam = parseInt(match[4]);
+      const menit = parseInt(match[5]);
+      const result = jam.toString().padStart(2, '0') + ":" + menit.toString().padStart(2, '0');
+      console.log(`✅ Parsed time: ${result}`);
+      return result;
+    }
+    
+    console.warn(`⚠️ Could not parse timestamp: ${timestampStr}`);
+    return "";
+  } catch (err) {
+    console.error(`❌ parseTimestampSimple error: ${err.message}`);
+    return "";
   }
-  const match = rawStr.match(/\b(\d{1,2}):(\d{2})\b/);
-  return match ? `${match[1].padStart(2,'0')}:${match[2]}` : "";
 }
 
 function speak(text, beepType = null) {
@@ -825,13 +860,48 @@ function showLargeToast(title, message, duration = 4000) {
   }, duration);
 }
 
+function startScan() {
+  if(scanning) return;
+  try {
+    document.getElementById("result").innerHTML = '<span class="result-status"><span class="result-status-icon">🔄</span> Membuka kamera...</span>';
+    qr = new Html5Qrcode("qr-reader");
+    qr.start({ facingMode: cameraFacing }, { fps: 10, qrbox: 250 }, onScan, () => {});
+    document.getElementById("result").innerHTML = '<span class="result-status"><span class="result-status-icon">📷</span> Arahkan ke QR...</span>';
+    scanning = true;
+    lastCode = null;
+  } catch(e) {
+    document.getElementById("result").innerHTML = `<span class="result-status"><span class="result-status-icon">❌</span> ${e.message}</span>`;
+  }
+}
+
+function stopScan() {
+  if(!qr || !scanning) return;
+  qr.stop().then(() => {
+    qr.clear();
+    scanning = false;
+    document.getElementById("result").innerHTML = '<span class="result-status"><span class="result-status-icon">🔴</span> Dihentikan</span>';
+  }).catch(() => {});
+}
+
 async function onScan(decodedText) {
   if(decodedText === lastCode) return;
   lastCode = decodedText;
   const result = document.getElementById("result");
   result.className = "";
-  result.innerHTML = `<span class="result-status"><span class="result-status-icon">✓</span> QR: ${decodedText}</span>`;
+  
+  const extractedUnit = extractUnitIdFromQR(decodedText);
+  result.innerHTML = `<span class="result-status"><span class="result-status-icon">✓</span> QR: ${extractedUnit}</span>`;
   playBeep("scanning");
+  
+  if (!isValidUnitFrontend(decodedText)) {
+    result.className = "status-invalid";
+    result.innerHTML = `<span class="result-status"><span class="result-status-icon">❌</span> Unit tidak terdaftar!</span>`;
+    speak("Unit tidak terdaftar di sistem", "error");
+    playBeep("error");
+    stopScan();
+    return;
+  }
+  
   const device = /Mobi|Android/i.test(navigator.userAgent) ? "Mobile" : "Desktop";
   apiRetryCount = 0;
   processQRCode(decodedText, device, result);
@@ -852,25 +922,36 @@ async function processQRCode(decodedText, device, result, retryCount = 0) {
       speak("Mode offline - data disimpan lokal", "error");
       return;
     }
+    
     const formData = new FormData();
     formData.append("qrData", decodedText);
     formData.append("userAgent", navigator.userAgent);
     formData.append("device", device);
     formData.append("line", line);
+    
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
-    const response = await fetch(URLS[line], {
+    
+    const response = await fetch(apiUrl, {
       method: "POST",
       body: formData,
       signal: controller.signal
     });
+    
     clearTimeout(timeout);
+    
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
+    
     const data = await response.json();
+    
     if (data.status === "success") {
       handleScanSuccess(data, decodedText, result);
+    } else if (data.refuelingStatus === "INVALID_QR") {
+      result.className = "status-invalid";
+      result.innerHTML = `<span class="result-status"><span class="result-status-icon">❌</span> ${data.message}</span>`;
+      speak(data.message || "Unit tidak valid", "error");
     } else {
       result.className = "status-error";
       result.innerHTML = `<span class="result-status"><span class="result-status-icon">❌</span> ${data.message || "Error"}</span>`;
@@ -891,6 +972,7 @@ async function processQRCode(decodedText, device, result, retryCount = 0) {
       speak("Koneksi gagal. Periksa jaringan anda", "error");
     }
   }
+  
   setTimeout(() => {
     if (qr && scanning) {
       qr.stop().then(() => {
@@ -905,6 +987,7 @@ function handleScanSuccess(data, decodedText, result) {
   const status = data.refuelingStatus;
   const minutes = data.minutesRemaining;
   const waktuSisaStr = toHourMinute(minutes);
+  
   if (status === "ALLOWED") {
     result.className = "status-allowed";
     result.innerHTML = `
@@ -915,12 +998,17 @@ function handleScanSuccess(data, decodedText, result) {
       </span>
     `;
     speak(`Pengisian diizinkan di line ${line}`, "success");
-  } else {
+  } else if (status === "DISALLOWED") {
     let fullUnitNumber = decodedText;
     let jamRefuel = "";
+    
+    // ✅ FIXED: Parse timestamp dari backend
     if (data.allowedTimestampStr) {
-      jamRefuel = formatToJamMenitFromRaw(data.allowedTimestampStr);
+      console.log(`🔍 Backend send: ${data.allowedTimestampStr}`);
+      jamRefuel = parseTimestampSimple(data.allowedTimestampStr);
+      console.log(`✅ Frontend parse result: ${jamRefuel}`);
     }
+    
     const allowedLine = data.lineName || line;
     result.className = "status-disallowed";
     result.innerHTML = `
@@ -930,8 +1018,13 @@ function handleScanSuccess(data, decodedText, result) {
         <span class="result-remain">Sisa ${waktuSisaStr} lagi</span>
       </span>
     `;
+    
     const unitInti = extractUnitNumber(decodedText);
     speak(`Mohon maaf unit ${unitInti} sudah melakukan pengisian pukul ${jamRefuel} di line ${allowedLine}`, "error");
+  } else if (status === "INVALID_QR") {
+    result.className = "status-invalid";
+    result.innerHTML = `<span class="result-status"><span class="result-status-icon">❌</span> Unit tidak terdaftar</span>`;
+    speak("Unit tidak terdaftar di sistem", "error");
   }
 }
 
